@@ -40,7 +40,12 @@ function AppProvider({ children }) {
   const [expenses, setExpenses] = useState(SEED_EXPENSES);
   const [txns,     setTxns]     = useState(SEED_TXN);
   const [toast,    setToast]    = useState(null);
-  const [notice,   setNotice]   = useState("Welcome to MessPro! Please ensure your pending dues are cleared by the 5th of every month.");
+  
+  // Notices State (Multiple)
+  const [notices, setNotices] = useState([
+    { id: "n1", text: "Welcome to MessPro! Please ensure your pending dues are cleared by the 5th of every month.", date: new Date().toISOString() }
+  ]);
+  const [dismissedNotices, setDismissedNotices] = useState([]);
 
   const showToast = (text, ok=true) => {
     setToast({ text, ok });
@@ -118,6 +123,17 @@ function AppProvider({ children }) {
     }]);
   }
 
+  // ── NOTICES ACTIONS ───────────────────────────────────────────────────────
+  function addNotice(text) {
+    setNotices(prev => [{ id: "n" + Date.now(), text, date: new Date().toISOString() }, ...prev]);
+  }
+  function removeNotice(id) {
+    setNotices(prev => prev.filter(n => n.id !== id));
+  }
+  function dismissNotice(id) {
+    setDismissedNotices(prev => [...prev, id]);
+  }
+
   // ── STUDENT ACTIONS ───────────────────────────────────────────────────────
   function payExpense(expenseId) {
     const exp = expenses.find(e => e.id === expenseId);
@@ -163,8 +179,8 @@ function AppProvider({ children }) {
 
   return (
     <Ctx.Provider value={{
-      user, students, wallets, expenses, txns, notice, setNotice,
-      doLogin, logout, showToast,
+      user, students, wallets, expenses, txns, notices, dismissedNotices,
+      doLogin, logout, showToast, addNotice, removeNotice, dismissNotice,
       registerStudent, editStudent, deleteStudent, loadWallet, addExpense,
       payExpense, updateProfile,
       getStudent, getWallet, getExpenses, getTxns,
@@ -184,8 +200,8 @@ const COLORS = ["#1e3a8a","#1d4ed8","#4338ca","#0f766e","#0369a1","#7c3aed"];
 const aviColor = name => COLORS[(name||"?").charCodeAt(0) % COLORS.length];
 
 // ── PRIMITIVES ────────────────────────────────────────────────────────────────
-const Card = ({children, style={}}) => (
-  <div style={{ background:"#fff", borderRadius:20, border:"1px solid #e2e8f0", boxShadow:"0 12px 32px rgba(0,0,0,.05)", ...style }}>
+const Card = ({children, style={}, className=""}) => (
+  <div className={className} style={{ background:"#fff", borderRadius:20, border:"1px solid #e2e8f0", boxShadow:"0 12px 32px rgba(0,0,0,.05)", ...style }}>
     {children}
   </div>
 );
@@ -210,10 +226,11 @@ function ToastPopup({ toast }) {
 }
 
 // Shaded Row Component for Lists
-const ShadedRow = ({children, style={}}) => {
+const ShadedRow = ({children, style={}, className=""}) => {
   const [hov, setHov] = useState(false);
   return (
     <div 
+      className={className}
       onMouseEnter={() => setHov(true)} 
       onMouseLeave={() => setHov(false)}
       style={{
@@ -242,7 +259,7 @@ function Av({ name, size=40 }) {
   );
 }
 
-function Btn({ children, onClick, type="button", color="primary", sm=false, full=false, disabled=false }) {
+function Btn({ children, onClick, type="button", color="primary", sm=false, full=false, disabled=false, className="" }) {
   const palettes = {
     primary: { bg:"linear-gradient(135deg, #1e3a8a, #1d4ed8)", hover:"linear-gradient(135deg, #1e40af, #1e3a8a)", text:"#fff", border: "none" },
     danger:  { bg:"linear-gradient(135deg, #dc2626, #b91c1c)", hover:"linear-gradient(135deg, #b91c1c, #991b1b)", text:"#fff", border: "none" },
@@ -253,6 +270,7 @@ function Btn({ children, onClick, type="button", color="primary", sm=false, full
   const [hov, setHov] = useState(false);
   return (
     <button
+      className={className}
       type={type} onClick={onClick} disabled={disabled}
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       style={{
@@ -262,7 +280,7 @@ function Btn({ children, onClick, type="button", color="primary", sm=false, full
         borderRadius: 12, 
         cursor: disabled ? "not-allowed" : "pointer",
         padding: sm ? "8px 14px" : "12px 20px",
-        fontSize: sm ? 12 : 14, fontWeight: 700,
+        fontSize: sm ? 13 : 14, fontWeight: 700,
         width: full ? "100%" : "auto",
         transition: "all .2s ease", 
         transform: hov && !disabled ? "translateY(-1px)" : "none",
@@ -277,14 +295,14 @@ function Btn({ children, onClick, type="button", color="primary", sm=false, full
 
 function Field({ label, value, onChange, type="text", readOnly=false, placeholder="", hint="" }) {
   return (
-    <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+    <div style={{ display:"flex", flexDirection:"column", gap:6, width:"100%" }}>
       {label && <label style={{ fontSize:11, fontWeight:800, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.08em" }}>{label}</label>}
       <input
         type={type} value={value} placeholder={placeholder} readOnly={readOnly}
         onChange={readOnly ? undefined : onChange}
         style={{
           border: `1px solid ${readOnly ? "#e2e8f0" : "#cbd5e1"}`,
-          borderRadius:12, padding:"12px 16px", fontSize:14,
+          borderRadius:12, padding:"12px 16px", fontSize:15,
           background: readOnly ? "#f8fafc" : "#fff",
           color: readOnly ? "#94a3b8" : "#1e293b",
           cursor: readOnly ? "not-allowed" : "text",
@@ -301,12 +319,12 @@ function Field({ label, value, onChange, type="text", readOnly=false, placeholde
 
 function Select({ label, value, onChange, children }) {
   return (
-    <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+    <div style={{ display:"flex", flexDirection:"column", gap:6, width:"100%" }}>
       {label && <label style={{ fontSize:11, fontWeight:800, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.08em" }}>{label}</label>}
       <select value={value} onChange={onChange}
         style={{
           border:"1px solid #cbd5e1", borderRadius:12, padding:"12px 16px",
-          fontSize:14, background:"#fff", color:"#1e293b",
+          fontSize:15, background:"#fff", color:"#1e293b",
           outline:"none", width:"100%", boxSizing:"border-box", fontFamily:"inherit",
         }}>
         {children}
@@ -344,12 +362,11 @@ function Modal({ title, onClose, children }) {
     }}>
       <div style={{
         background:"#fff", borderRadius:24, boxShadow:"0 25px 50px -12px rgba(0,0,0,0.25)",
-        width:"100%", maxWidth:460, maxHeight:"90vh", overflowY:"auto",
+        width:"100%", maxWidth:460, maxHeight:"90vh", display:"flex", flexDirection:"column",
       }}>
         <div style={{
           display:"flex", alignItems:"center", justifyContent:"space-between",
-          padding:"20px 28px", borderBottom:"1px solid #f1f5f9",
-          position:"sticky", top:0, background:"#fff", zIndex:1,
+          padding:"20px 24px", borderBottom:"1px solid #f1f5f9", flexShrink: 0
         }}>
           <span style={{ fontWeight:800, fontSize:18, color:"#0f172a" }}>{title}</span>
           <button onClick={onClose} style={{
@@ -361,7 +378,7 @@ function Modal({ title, onClose, children }) {
           onMouseLeave={e => e.currentTarget.style.background="#f1f5f9"}
           >✕</button>
         </div>
-        <div style={{ padding:"24px 28px" }}>{children}</div>
+        <div style={{ padding:"20px 24px", overflowY:"auto" }}>{children}</div>
       </div>
     </div>
   );
@@ -370,9 +387,9 @@ function Modal({ title, onClose, children }) {
 function StatCard({ icon, label, value, sub, valueColor="#0f172a" }) {
   return (
     <Card style={{ padding:24, display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-      <div style={{ minWidth:0 }}>
+      <div style={{ minWidth:0, paddingRight:12 }}>
         <div style={{ fontSize:11, fontWeight:800, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:8 }}>{label}</div>
-        <div style={{ fontSize:32, fontWeight:800, color:valueColor, lineHeight:1 }}>{value}</div>
+        <div style={{ fontSize:32, fontWeight:800, color:valueColor, lineHeight:1, wordWrap:"break-word" }}>{value}</div>
         {sub && <div style={{ fontSize:13, color:"#94a3b8", marginTop:8, fontWeight: 600 }}>{sub}</div>}
       </div>
       <div style={{ 
@@ -395,7 +412,8 @@ function Alert({ msg, ok }) {
       borderRadius:12, padding:"12px 16px", fontSize:14, fontWeight:700,
       display:"flex", alignItems:"center", gap: 8
     }}>
-      <span>{ok ? "✅" : "⚠️"}</span> {msg}
+      <span style={{flexShrink:0}}>{ok ? "✅" : "⚠️"}</span> 
+      <span style={{lineHeight: 1.4}}>{msg}</span>
     </div>
   );
 }
@@ -432,7 +450,7 @@ function LoginPage() {
           <div style={{ color:"#93c5fd", fontSize:14, marginTop:6, fontWeight:500 }}>Hostel Mess Management System</div>
         </div>
 
-        <Card style={{ padding:32, boxShadow:"0 25px 50px -12px rgba(0,0,0,0.5)", border:"none" }}>
+        <Card style={{ padding:"32px 24px", boxShadow:"0 25px 50px -12px rgba(0,0,0,0.5)", border:"none" }}>
           <div style={{ fontSize:18, fontWeight:800, color:"#0f172a", marginBottom:24 }}>Sign in to your account</div>
           <div style={{ display:"flex", flexDirection:"column", gap:18 }}>
             <Field label="Phone / Username" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Enter phone or 'admin'" />
@@ -444,7 +462,6 @@ function LoginPage() {
           </div>
         </Card>
 
-        {/* Hidden Test Credentials Popup Trigger */}
         <div style={{ textAlign: "center", marginTop: 24 }}>
           <button 
             onClick={() => setShowQuickLogin(true)} 
@@ -469,13 +486,12 @@ function LoginPage() {
         </div>
       </div>
 
-      {/* Pop up for Quick Login */}
       {showQuickLogin && (
         <Modal title="Quick Demo Accounts" onClose={() => setShowQuickLogin(false)}>
           <div style={{ fontSize:14, color:"#475569", marginBottom:20, lineHeight:1.5 }}>
             Select a demo account below to instantly autofill the login credentials for testing purposes.
           </div>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:12 }}>
             {[
               { label:"👑 Admin",  p:"admin",       pw:"admin123" },
               { label:"🎓 Arjun",  p:"9876543210",  pw:"pass123"  },
@@ -508,20 +524,19 @@ function Shell({ children, tabs, activeTab, onTab }) {
   return (
     <div style={{ minHeight:"100vh", background:"#f1f5f9", fontFamily:"inherit", display:"flex", flexDirection:"column" }}>
       <div style={{
-        background:"linear-gradient(90deg, #0f172a 0%, #1e3a8a 100%)", color:"#fff", padding:"0 24px", height:64,
+        background:"linear-gradient(90deg, #0f172a 0%, #1e3a8a 100%)", color:"#fff", padding:"0 20px", height:64,
         display:"flex", alignItems:"center", justifyContent:"space-between",
         position:"sticky", top:0, zIndex:50, boxShadow:"0 4px 20px rgba(0,0,0,.15)",
       }}>
-        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-          <span style={{ fontSize:24 }}>🍽️</span>
-          <span style={{ fontWeight:800, fontSize:20, letterSpacing:"-0.5px" }}>MessPro</span>
-          <div style={{ marginLeft: 8 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10, minWidth:0 }}>
+          <span style={{ fontSize:24, flexShrink:0 }}>🍽️</span>
+          <span style={{ fontWeight:800, fontSize:20, letterSpacing:"-0.5px" }} className="text-truncate">MessPro</span>
+          <div className="st-hide-mobile" style={{ marginLeft: 8, flexShrink:0 }}>
             <Badge text={isAdmin ? "Administrator" : "Student"} color={isAdmin ? "amber" : "blue"} />
           </div>
         </div>
-        <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-          {me && <span style={{ color:"#e0e7ff", fontSize:14, fontWeight:700 }}>{me.name}</span>}
-          {/* Replaced direct logout with Pop up trigger */}
+        <div style={{ display:"flex", alignItems:"center", gap:16, flexShrink:0 }}>
+          {me && <span className="st-hide-mobile" style={{ color:"#e0e7ff", fontSize:14, fontWeight:700 }}>{me.name}</span>}
           <button onClick={() => setShowLogoutModal(true)} style={{
             background:"rgba(255,255,255,.1)", border:"1px solid rgba(255,255,255,.15)",
             color:"#fff", borderRadius:10, padding:"8px 16px", fontSize:13,
@@ -535,14 +550,14 @@ function Shell({ children, tabs, activeTab, onTab }) {
 
       <div style={{
         background:"#fff", borderBottom:"1px solid #e2e8f0",
-        position:"sticky", top:64, zIndex:40, overflowX:"auto",
+        position:"sticky", top:64, zIndex:40,
         boxShadow: "0 1px 2px rgba(0,0,0,0.02)"
       }}>
-        <div style={{ display:"flex", padding:"0 24px", minWidth:"max-content" }}>
+        <div className="st-tabs-scroll" style={{ display:"flex", padding:"0 20px", overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
           {tabs.map(t => (
             <button key={t.id} onClick={() => onTab(t.id)} style={{
               background:"none", border:"none", cursor:"pointer",
-              padding:"16px 20px", fontSize:14, fontWeight:700, whiteSpace:"nowrap",
+              padding:"16px 16px", fontSize:14, fontWeight:700, whiteSpace:"nowrap",
               color: activeTab===t.id ? "#1d4ed8" : "#64748b",
               borderBottom: activeTab===t.id ? "3px solid #1d4ed8" : "3px solid transparent",
               transition:"color .2s",
@@ -553,7 +568,9 @@ function Shell({ children, tabs, activeTab, onTab }) {
         </div>
       </div>
 
-      <div style={{ flex: 1, maxWidth:1000, margin:"0 auto", padding:"32px 24px", width: "100%" }}>{children}</div>
+      <div className="st-shell-pad" style={{ flex: 1, maxWidth:1000, margin:"0 auto", padding:"32px 24px", width: "100%", boxSizing:"border-box" }}>
+        {children}
+      </div>
       
       <div style={{ 
         textAlign: "center", 
@@ -566,13 +583,12 @@ function Shell({ children, tabs, activeTab, onTab }) {
         © 2026 MessPro. Developed by Dip.
       </div>
 
-      {/* Pop up for Logout Confirmation */}
       {showLogoutModal && (
         <Modal title="Confirm Logout" onClose={() => setShowLogoutModal(false)}>
           <div style={{ fontSize:15, color:"#475569", marginBottom:24, lineHeight:1.6, fontWeight:500 }}>
             Are you sure you want to log out of your account? You will need to re-enter your credentials to access the system again.
           </div>
-          <div style={{ display:"flex", gap:12 }}>
+          <div className="st-form-row" style={{ display:"flex", gap:12 }}>
             <Btn full color="danger" onClick={() => { setShowLogoutModal(false); logout(); }}>Yes, Logout</Btn>
             <Btn full color="ghost" onClick={() => setShowLogoutModal(false)}>Cancel</Btn>
           </div>
@@ -589,7 +605,7 @@ const ADMIN_TABS = [
   { id:"students", label:"👥 Students"     },
   { id:"billing",  label:"💳 Billing"      },
   { id:"ledger",   label:"📒 Ledger"       },
-  { id:"notice",   label:"📢 Notice"       }, // Notice moved here
+  { id:"notice",   label:"📢 Notice"       },
 ];
 
 function AdminDash() {
@@ -598,10 +614,10 @@ function AdminDash() {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:24 }}>
       <div>
-        <div style={{ fontSize:24, fontWeight:800, color:"#0f172a", letterSpacing:"-0.5px" }}>System Overview</div>
+        <div className="st-title" style={{ fontSize:28, fontWeight:800, color:"#0f172a", letterSpacing:"-0.5px" }}>System Overview</div>
         <div style={{ fontSize:14, color:"#64748b", marginTop:4 }}>Live analytics across all students</div>
       </div>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(250px,1fr))", gap:20 }}>
+      <div className="st-stats" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(250px,1fr))", gap:20 }}>
         <StatCard icon="👥" label="Total Students"    value={students.length}          sub="Registered accounts" />
         <StatCard icon="⚠️" label="Outstanding Dues"  value={rupee(totalDues)}         sub={`${expenses.filter(e=>!e.isPaid).length} unpaid bills`} valueColor="#dc2626" />
         <StatCard icon="💰" label="Total Wallet Pool" value={rupee(walletPool)}        sub="Combined balances"   valueColor="#059669" />
@@ -621,19 +637,23 @@ function AdminDash() {
             const w    = getWallet(s.id);
             const dues = getExpenses(s.id).filter(e=>!e.isPaid).reduce((t,e)=>t+e.amount,0);
             return (
-              <ShadedRow key={s.id} style={{ display:"flex", alignItems:"center", gap:16, padding:"16px 24px" }}>
-                <Av name={s.name} size={48} />
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontWeight:700, fontSize:16, color:"#1e293b", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.name}</div>
-                  <div style={{ fontSize:13, color:"#64748b", marginTop: 4, fontWeight:600 }}>{s.phone}</div>
+              <ShadedRow key={s.id} className="st-row" style={{ display:"flex", alignItems:"center", gap:16, padding:"16px 24px" }}>
+                <div className="st-row-header" style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", gap:16 }}>
+                  <Av name={s.name} size={48} />
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:800, fontSize:17, color:"#1e293b", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.name}</div>
+                    <div style={{ fontSize:13, color:"#64748b", marginTop: 4, fontWeight:600 }}>{s.phone}</div>
+                  </div>
                 </div>
-                <div style={{ textAlign:"right", marginRight:32 }}>
-                  <div style={{ fontSize:11, fontWeight:800, textTransform:"uppercase", color:"#94a3b8", letterSpacing:"0.05em", marginBottom:4 }}>Balance</div>
-                  <div style={{ fontWeight:800, fontSize:16, color:"#059669" }}>{rupee(w?.balance??0)}</div>
-                </div>
-                <div style={{ textAlign:"right", minWidth: 80 }}>
-                  <div style={{ fontSize:11, fontWeight:800, textTransform:"uppercase", color:"#94a3b8", letterSpacing:"0.05em", marginBottom:4 }}>Dues</div>
-                  <div style={{ fontWeight:800, fontSize:16, color: dues>0?"#dc2626":"#94a3b8" }}>{rupee(dues)}</div>
+                <div className="st-row-actions-left" style={{ display:"flex", alignItems:"center", gap:24, flexShrink:0 }}>
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontSize:11, fontWeight:800, textTransform:"uppercase", color:"#94a3b8", letterSpacing:"0.05em", marginBottom:4 }}>Balance</div>
+                    <div style={{ fontWeight:800, fontSize:16, color:"#059669" }}>{rupee(w?.balance??0)}</div>
+                  </div>
+                  <div style={{ textAlign:"right", minWidth: 60 }}>
+                    <div style={{ fontSize:11, fontWeight:800, textTransform:"uppercase", color:"#94a3b8", letterSpacing:"0.05em", marginBottom:4 }}>Dues</div>
+                    <div style={{ fontWeight:800, fontSize:16, color: dues>0?"#dc2626":"#94a3b8" }}>{rupee(dues)}</div>
+                  </div>
                 </div>
               </ShadedRow>
             );
@@ -667,13 +687,13 @@ function AdminRegister() {
 
   if (done) return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
-      <div style={{ width:"100%", maxWidth:540 }}>
+      <div style={{ width:"100%", maxWidth:480 }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-           <div style={{ fontSize:28, fontWeight:800, color:"#0f172a", letterSpacing:"-0.5px" }}>Register New Student</div>
+           <div className="st-title" style={{ fontSize:28, fontWeight:800, color:"#0f172a", letterSpacing:"-0.5px" }}>Register New Student</div>
            <div style={{ fontSize:15, color:"#64748b", marginTop:8 }}>The student profile was created successfully.</div>
         </div>
-        <Card style={{ padding:32 }}>
-          <div style={{ background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:16, padding:24, marginBottom:24 }}>
+        <Card className="st-pd" style={{ padding:32 }}>
+          <div style={{ background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:16, padding:20, marginBottom:24 }}>
             <div style={{ fontWeight:800, fontSize:18, color:"#166534", marginBottom:8, display:"flex", alignItems:"center", gap:8 }}>✅ Registration Complete</div>
             <div style={{ fontSize:14, color:"#15803d", lineHeight:1.6, fontWeight: 500 }}>
               <strong>{done.name}</strong> has been successfully added to the system and can now log in using the phone number <strong>{done.phone}</strong>.
@@ -687,25 +707,23 @@ function AdminRegister() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
-      <div style={{ width: "100%", maxWidth:540 }}>
+      <div style={{ width: "100%", maxWidth:480 }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-           <div style={{ fontSize:28, fontWeight:800, color:"#0f172a", letterSpacing:"-0.5px" }}>Register New Student</div>
+           <div className="st-title" style={{ fontSize:28, fontWeight:800, color:"#0f172a", letterSpacing:"-0.5px" }}>Register New Student</div>
            <div style={{ fontSize:15, color:"#64748b", marginTop:8 }}>Create login credentials and set up a new student account.</div>
         </div>
-        <Card style={{ padding:32 }}>
-          <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
-              <Field label="Full Name *"    value={f.name}    onChange={set("name")}    placeholder="e.g. Anika Patel" />
-              <Field label="Phone Number *" value={f.phone}   onChange={set("phone")}   placeholder="10-digit number" />
-            </div>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
-              <Field label="Password *"         type="password" value={f.password} onChange={set("password")} placeholder="Min 4 chars" />
-              <Field label="Confirm Password *" type="password" value={f.confirm}  onChange={set("confirm")}  placeholder="Re-enter" />
-            </div>
+        <Card className="st-pd" style={{ padding:32 }}>
+          <div style={{ display:"flex", flexDirection:"column", gap:20, width: "100%" }}>
+            <Field label="Full Name *"    value={f.name}    onChange={set("name")}    placeholder="e.g. Anika Patel" />
+            <Field label="Phone Number *" value={f.phone}   onChange={set("phone")}   placeholder="10-digit number" />
+            <Field label="Password *"         type="password" value={f.password} onChange={set("password")} placeholder="Min 4 chars" />
+            <Field label="Confirm Password *" type="password" value={f.confirm}  onChange={set("confirm")}  placeholder="Re-enter password" />
             <Field label="Email Address" type="email" value={f.email}   onChange={set("email")}   placeholder="student@email.com" />
             <Field label="Room / Address" value={f.address} onChange={set("address")} placeholder="Room no., Block" />
+            
             {err && <Alert msg={err} ok={false} />}
-            <div style={{ display:"flex", gap:12, marginTop:12 }}>
+            
+            <div className="st-form-row" style={{ display:"flex", gap:12, marginTop:12 }}>
               <div style={{ flex:2 }}><Btn full onClick={submit}>Create Account</Btn></div>
               <div style={{ flex:1 }}><Btn full color="ghost" onClick={() => { setF(blank); setErr(""); }}>Clear</Btn></div>
             </div>
@@ -749,7 +767,7 @@ function AdminStudents() {
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
-      <div style={{ fontSize:28, fontWeight:800, color:"#0f172a", letterSpacing:"-0.5px" }}>Manage Students</div>
+      <div className="st-title" style={{ fontSize:28, fontWeight:800, color:"#0f172a", letterSpacing:"-0.5px" }}>Manage Students</div>
       
       {students.length === 0 ? (
         <Card style={{ padding:"60px 20px", textAlign:"center", color:"#94a3b8", fontSize:14 }}>
@@ -758,16 +776,18 @@ function AdminStudents() {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {students.map((s) => (
-            <ShadedRow key={s.id} style={{ display:"flex", alignItems:"center", gap:16, padding:"20px 24px" }}>
-              <Av name={s.name} size={52} />
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontWeight:800, fontSize:17, color:"#1e293b" }}>{s.name}</div>
-                <div style={{ fontSize:13, color:"#64748b", marginTop: 6, fontWeight:600 }}>{s.phone} &nbsp;•&nbsp; {s.email||"No email provided"}</div>
-                {s.address && <div style={{ fontSize:13, color:"#64748b", marginTop: 4, fontWeight:600 }}>📍 {s.address}</div>}
+            <ShadedRow key={s.id} className="st-row" style={{ display:"flex", alignItems:"center", gap:16, padding:"20px 24px" }}>
+              <div className="st-row-header" style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", gap:16 }}>
+                <Av name={s.name} size={52} />
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontWeight:800, fontSize:17, color:"#1e293b", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.name}</div>
+                  <div style={{ fontSize:13, color:"#64748b", marginTop: 6, fontWeight:600 }} className="text-truncate">{s.phone} &nbsp;•&nbsp; {s.email||"No email"}</div>
+                  {s.address && <div style={{ fontSize:13, color:"#64748b", marginTop: 4, fontWeight:600 }} className="text-truncate">📍 {s.address}</div>}
+                </div>
               </div>
-              <div style={{ display:"flex", gap:10, flexShrink:0 }}>
-                <Btn sm color="ghost" onClick={() => openEdit(s)}>✏️ Edit Profile</Btn>
-                <Btn sm color="danger" onClick={() => setDeleting(s)}>🗑️ Delete</Btn>
+              <div className="st-row-actions" style={{ display:"flex", gap:10, flexShrink:0 }}>
+                <Btn sm color="ghost" className="st-btn-full-mobile" onClick={() => openEdit(s)}>✏️ Edit Profile</Btn>
+                <Btn sm color="danger" className="st-btn-full-mobile" onClick={() => setDeleting(s)}>🗑️ Delete</Btn>
               </div>
             </ShadedRow>
           ))}
@@ -782,7 +802,7 @@ function AdminStudents() {
             <Field label="New Password" type="password" value={ef.password} onChange={e => setEf(f=>({...f,password:e.target.value}))} placeholder="Leave blank to keep current password" />
             <Field label="Email Address" value={ef.email} onChange={e => setEf(f=>({...f,email:e.target.value}))} />
             <Field label="Room / Address" value={ef.address} onChange={e => setEf(f=>({...f,address:e.target.value}))} />
-            <div style={{ display:"flex", gap:12, marginTop:12 }}>
+            <div className="st-form-row" style={{ display:"flex", gap:12, marginTop:12 }}>
               <div style={{ flex: 2 }}><Btn full onClick={saveEdit}>Save Changes</Btn></div>
               <div style={{ flex: 1 }}><Btn full color="ghost" onClick={() => setEditing(null)}>Cancel</Btn></div>
             </div>
@@ -795,8 +815,8 @@ function AdminStudents() {
           <div style={{ fontSize:15, color:"#475569", marginBottom:24, lineHeight:1.6, fontWeight: 500 }}>
             Are you sure you want to delete <strong>{deleting.name}</strong>? This action is irreversible and will remove all their associated wallet data, expenses, and transactions.
           </div>
-          <div style={{ display:"flex", gap:12 }}>
-            <Btn full color="danger" onClick={confirmDel}>Yes, Delete Student</Btn>
+          <div className="st-form-row" style={{ display:"flex", gap:12 }}>
+            <Btn full color="danger" onClick={confirmDel}>Yes, Delete</Btn>
             <Btn full color="ghost" onClick={() => setDeleting(null)}>Cancel</Btn>
           </div>
         </Modal>
@@ -827,8 +847,8 @@ function AdminBilling() {
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:24 }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:12 }}>
-        <div style={{ fontSize:28, fontWeight:800, color:"#0f172a", letterSpacing:"-0.5px" }}>Wallet & Billing</div>
+      <div className="st-wrap" style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12 }}>
+        <div className="st-title" style={{ fontSize:28, fontWeight:800, color:"#0f172a", letterSpacing:"-0.5px" }}>Wallet & Billing</div>
         <Btn color="success" onClick={() => setEModal(true)}>+ Add New Expense</Btn>
       </div>
       
@@ -846,21 +866,25 @@ function AdminBilling() {
               const w    = getWallet(s.id);
               const dues = getExpenses(s.id).filter(e=>!e.isPaid).reduce((t,e)=>t+e.amount,0);
               return (
-                <ShadedRow key={s.id} style={{ display:"flex", alignItems:"center", gap:16, padding:"20px 24px" }}>
-                  <Av name={s.name} size={48} />
-                  <div style={{ flex:1, minWidth:0, display: "flex", flexDirection: "column", alignItems: "center" }}>
-                    <div style={{ fontWeight:800, fontSize:17, color:"#1e293b", textAlign:"center" }}>{s.name}</div>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 13, color: "#64748b", fontWeight: 700 }}>
-                        Balance: <span style={{ color: "#059669", fontWeight: 800, fontSize: 14, marginLeft:4 }}>{rupee(w?.balance??0)}</span>
-                      </span>
-                      <span style={{ color: "#e2e8f0" }}>|</span>
-                      <span style={{ fontSize: 13, color: "#64748b", fontWeight: 700 }}>
-                        Dues: <span style={{ color: dues>0?"#dc2626":"#94a3b8", fontWeight: 800, fontSize: 14, marginLeft:4 }}>{rupee(dues)}</span>
-                      </span>
+                <ShadedRow key={s.id} className="st-row" style={{ display:"flex", alignItems:"center", gap:16, padding:"20px 24px" }}>
+                  <div className="st-row-header" style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", gap:16 }}>
+                    <Av name={s.name} size={48} />
+                    <div style={{ flex:1, minWidth:0, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                      <div style={{ fontWeight:800, fontSize:17, color:"#1e293b", textAlign:"center", width:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.name}</div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginTop: 8, flexWrap: "wrap", width:"100%" }}>
+                        <span style={{ fontSize: 13, color: "#64748b", fontWeight: 700 }}>
+                          Balance: <span style={{ color: "#059669", fontWeight: 800, fontSize: 14, marginLeft:4 }}>{rupee(w?.balance??0)}</span>
+                        </span>
+                        <span className="st-hide-mobile" style={{ color: "#e2e8f0" }}>|</span>
+                        <span style={{ fontSize: 13, color: "#64748b", fontWeight: 700 }}>
+                          Dues: <span style={{ color: dues>0?"#dc2626":"#94a3b8", fontWeight: 800, fontSize: 14, marginLeft:4 }}>{rupee(dues)}</span>
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <Btn onClick={() => setWModal(s)}>+ Load Funds</Btn>
+                  <div className="st-row-actions" style={{ flexShrink:0 }}>
+                    <Btn className="st-btn-full-mobile" onClick={() => setWModal(s)}>+ Load Funds</Btn>
+                  </div>
                 </ShadedRow>
               );
             })}
@@ -873,7 +897,7 @@ function AdminBilling() {
           <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
             <Field label="Amount (₹)" type="number" value={wAmt} onChange={e => setWAmt(e.target.value)} placeholder="e.g. 500" />
             <Field label="Note (optional)" value={wNote} onChange={e => setWNote(e.target.value)} placeholder="e.g. May recharge" />
-            <div style={{ display:"flex", gap:12, marginTop:12 }}>
+            <div className="st-form-row" style={{ display:"flex", gap:12, marginTop:12 }}>
               <div style={{ flex:2 }}><Btn full onClick={doLoad}>Confirm Load</Btn></div>
               <div style={{ flex:1 }}><Btn full color="ghost" onClick={() => setWModal(null)}>Cancel</Btn></div>
             </div>
@@ -890,7 +914,7 @@ function AdminBilling() {
             </Select>
             <Field label="Amount (₹) *" type="number" value={eAmt} onChange={e => setEAmt(e.target.value)} placeholder="e.g. 320" />
             <Field label="Expense Description *" value={eDesc} onChange={e => setEDesc(e.target.value)} placeholder="e.g. June Week 1 Mess Bill" />
-            <div style={{ display:"flex", gap:12, marginTop:12 }}>
+            <div className="st-form-row" style={{ display:"flex", gap:12, marginTop:12 }}>
               <div style={{ flex:2 }}><Btn full onClick={doExpense}>Create Expense</Btn></div>
               <div style={{ flex:1 }}><Btn full color="ghost" onClick={() => setEModal(false)}>Cancel</Btn></div>
             </div>
@@ -906,70 +930,70 @@ function AdminLedger() {
   const sorted = [...txns].sort((a,b) => new Date(b.date)-new Date(a.date));
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
-      <div style={{ fontSize:28, fontWeight:800, color:"#0f172a", letterSpacing:"-0.5px" }}>Global Transaction Ledger</div>
-      <Card style={{ overflowX:"auto" }}>
-        <table style={{ width:"100%", borderCollapse:"collapse", minWidth:600 }}>
-          <thead>
-            <tr style={{ background:"#f8fafc", borderBottom:"2px solid #e2e8f0" }}>
-              <th style={{ padding:"16px 20px", textAlign:"left", fontSize:12, fontWeight:800, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.08em", whiteSpace:"nowrap" }}>Date</th>
-              <th style={{ padding:"16px 20px", textAlign:"left", fontSize:12, fontWeight:800, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.08em", whiteSpace:"nowrap" }}>Student</th>
-              <th style={{ padding:"16px 20px", textAlign:"center", fontSize:12, fontWeight:800, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.08em", whiteSpace:"nowrap" }}>Type</th>
-              <th style={{ padding:"16px 20px", textAlign:"right", fontSize:12, fontWeight:800, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.08em", whiteSpace:"nowrap" }}>Amount</th>
-              <th style={{ padding:"16px 20px", textAlign:"left", fontSize:12, fontWeight:800, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.08em", whiteSpace:"nowrap" }}>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((t,i) => {
-              const s = students.find(x => x.id===t.studentId);
-              return (
-                <tr key={t.id} style={{ borderBottom: i<sorted.length-1?"1px solid #f1f5f9":"none", transition: "background 0.2s" }} onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  <td style={{ padding:"16px 20px", fontSize:13, color:"#64748b", whiteSpace:"nowrap", fontWeight:600, textAlign:"left" }}>{fdate(t.date)}</td>
-                  <td style={{ padding:"16px 20px", textAlign:"left" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                      {s && <Av name={s.name} size={32} />}
-                      <span style={{ fontSize:14, fontWeight:700, color:"#1e293b" }}>{s?.name||"Unknown"}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding:"16px 20px", textAlign:"center" }}>
-                    <Badge text={t.type} color={t.type==="Credit"?"green":"red"} />
-                  </td>
-                  <td style={{ padding:"16px 20px", fontWeight:800, fontSize:15, color:t.type==="Credit"?"#059669":"#dc2626", whiteSpace:"nowrap", textAlign:"right" }}>
-                    {t.type==="Credit"?"+":"−"}{rupee(t.amount)}
-                  </td>
-                  <td style={{ padding:"16px 20px", fontSize:13, color:"#64748b", fontWeight:600, textAlign:"left" }}>{t.description}</td>
-                </tr>
-              );
-            })}
-            {sorted.length===0 && (
-              <tr><td colSpan={5} style={{ padding:"60px 20px", textAlign:"center", color:"#94a3b8", fontSize:14 }}>No transactions yet.</td></tr>
-            )}
-          </tbody>
-        </table>
+      <div className="st-title" style={{ fontSize:28, fontWeight:800, color:"#0f172a", letterSpacing:"-0.5px" }}>Global Transaction Ledger</div>
+      <Card style={{ padding: 0 }}>
+        {/* Responsive horizontal scrolling for table */}
+        <div className="st-table-wrap" style={{ width: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch", borderRadius: 20 }}>
+          <table style={{ width:"100%", borderCollapse:"collapse", minWidth:600 }}>
+            <thead>
+              <tr style={{ background:"#f8fafc", borderBottom:"2px solid #e2e8f0" }}>
+                <th style={{ padding:"16px 20px", textAlign:"left", fontSize:12, fontWeight:800, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.08em", whiteSpace:"nowrap" }}>Date</th>
+                <th style={{ padding:"16px 20px", textAlign:"left", fontSize:12, fontWeight:800, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.08em", whiteSpace:"nowrap" }}>Student</th>
+                <th style={{ padding:"16px 20px", textAlign:"center", fontSize:12, fontWeight:800, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.08em", whiteSpace:"nowrap" }}>Type</th>
+                <th style={{ padding:"16px 20px", textAlign:"right", fontSize:12, fontWeight:800, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.08em", whiteSpace:"nowrap" }}>Amount</th>
+                <th style={{ padding:"16px 20px", textAlign:"left", fontSize:12, fontWeight:800, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.08em", whiteSpace:"nowrap" }}>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((t,i) => {
+                const s = students.find(x => x.id===t.studentId);
+                return (
+                  <tr key={t.id} style={{ borderBottom: i<sorted.length-1?"1px solid #f1f5f9":"none", transition: "background 0.2s" }} onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                    <td style={{ padding:"16px 20px", fontSize:13, color:"#64748b", whiteSpace:"nowrap", fontWeight:600, textAlign:"left" }}>{fdate(t.date)}</td>
+                    <td style={{ padding:"16px 20px", textAlign:"left" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                        {s && <Av name={s.name} size={32} />}
+                        <span style={{ fontSize:14, fontWeight:700, color:"#1e293b", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"150px" }}>{s?.name||"Unknown"}</span>
+                      </div>
+                    </td>
+                    <td style={{ padding:"16px 20px", textAlign:"center" }}>
+                      <Badge text={t.type} color={t.type==="Credit"?"green":"red"} />
+                    </td>
+                    <td style={{ padding:"16px 20px", fontWeight:800, fontSize:15, color:t.type==="Credit"?"#059669":"#dc2626", whiteSpace:"nowrap", textAlign:"right" }}>
+                      {t.type==="Credit"?"+":"−"}{rupee(t.amount)}
+                    </td>
+                    <td style={{ padding:"16px 20px", fontSize:13, color:"#64748b", fontWeight:600, textAlign:"left" }}>{t.description}</td>
+                  </tr>
+                );
+              })}
+              {sorted.length===0 && (
+                <tr><td colSpan={5} style={{ padding:"60px 20px", textAlign:"center", color:"#94a3b8", fontSize:14 }}>No transactions yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </Card>
     </div>
   );
 }
 
 function AdminNotice() {
-  const { notice, setNotice, showToast } = useApp();
-  const [noticeText, setNoticeText] = useState(notice);
+  const { notices, addNotice, removeNotice, showToast } = useApp();
+  const [noticeText, setNoticeText] = useState("");
 
   function handlePublish() {
     if (!noticeText.trim()) return showToast("Notice cannot be empty.", false);
-    setNotice(noticeText.trim());
-    showToast("Notice broadcasted successfully!", true);
-  }
-
-  function handleDelete() {
-    setNotice("");
+    addNotice(noticeText.trim());
     setNoticeText("");
-    showToast("Notice deleted successfully.", true);
+    showToast("Notice broadcasted successfully!", true);
   }
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:24 }}>
-      <div style={{ fontSize:28, fontWeight:800, color:"#0f172a", letterSpacing:"-0.5px" }}>Broadcast Notice</div>
-      <Card style={{ padding: 24 }}>
+      <div className="st-title" style={{ fontSize:28, fontWeight:800, color:"#0f172a", letterSpacing:"-0.5px" }}>Broadcast Notice</div>
+      
+      {/* Notice Creation Form */}
+      <Card className="st-pd" style={{ padding: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
           <span style={{ fontSize: 24 }}>📢</span>
           <div>
@@ -983,17 +1007,40 @@ function AdminNotice() {
           placeholder="Type an announcement here..."
           style={{ 
             width: "100%", padding: "14px 16px", borderRadius: "12px", border: "1px solid #cbd5e1", 
-            outline: "none", minHeight: "120px", fontFamily: "inherit", fontSize: "14px", 
-            marginBottom: "16px", resize: "vertical", transition: "border-color 0.2s" 
+            outline: "none", minHeight: "100px", fontFamily: "inherit", fontSize: "15px", 
+            marginBottom: "16px", resize: "vertical", transition: "border-color 0.2s", boxSizing: "border-box" 
           }}
           onFocus={e => e.target.style.borderColor = "#1e3a8a"}
           onBlur={e => e.target.style.borderColor = "#cbd5e1"}
         />
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
-          {notice && <Btn color="danger" onClick={handleDelete}>Delete Current Notice</Btn>}
-          <Btn onClick={handlePublish}>Publish Notice</Btn>
+        <div className="st-form-row" style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
+          <Btn full className="st-btn-full-mobile" onClick={handlePublish}>Publish Notice</Btn>
         </div>
       </Card>
+
+      {/* Active Notices List */}
+      <div>
+        <div style={{ fontSize:18, fontWeight:800, color:"#0f172a", marginBottom: 16 }}>Active Announcements</div>
+        {notices.length === 0 ? (
+          <Card style={{ padding: "40px 20px", textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
+            No active notices. Broadcasted announcements will appear here.
+          </Card>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {notices.map((n) => (
+              <ShadedRow key={n.id} className="st-row" style={{ padding: "20px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 15, color: "#1e293b", fontWeight: 700, lineHeight: 1.5, wordWrap: "break-word" }}>{n.text}</div>
+                  <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 6, fontWeight: 600 }}>Published on {new Date(n.date).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</div>
+                </div>
+                <div className="st-row-actions" style={{ flexShrink: 0 }}>
+                  <Btn color="danger" sm className="st-btn-full-mobile" onClick={() => removeNotice(n.id)}>🗑️ Delete</Btn>
+                </div>
+              </ShadedRow>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -1007,8 +1054,7 @@ const STU_TABS = [
 ];
 
 function StuWallet({ id }) {
-  const { getWallet, getExpenses, notice } = useApp();
-  const [dismissedNotice, setDismissedNotice] = useState("");
+  const { getWallet, getExpenses, notices, dismissedNotices, dismissNotice } = useApp();
   const w    = getWallet(id);
   const exps = getExpenses(id);
   const dues = exps.filter(e=>!e.isPaid).reduce((s,e)=>s+e.amount,0);
@@ -1017,41 +1063,48 @@ function StuWallet({ id }) {
   const total= bal+dues;
   const pct  = total>0 ? Math.round(bal/total*100) : 0;
   
+  // Only display notices that the user hasn't explicitly dismissed
+  const activeNotices = notices.filter(n => !dismissedNotices.includes(n.id));
+
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:24 }}>
-      {/* Student Global Dashboard Notice Banner */}
-      {notice && notice !== dismissedNotice && (
-        <div style={{
-          background: "linear-gradient(to right, #eff6ff, #f8fafc)",
-          border: "1px solid #bfdbfe", borderLeft: "4px solid #3b82f6",
-          padding: "16px 40px 16px 20px", borderRadius: "12px", display: "flex", alignItems: "center", gap: "16px",
-          boxShadow: "0 4px 12px rgba(59, 130, 246, 0.05)", position: "relative"
-        }}>
-          <span style={{fontSize:"24px"}}>📢</span>
-          <div>
-            <div style={{fontSize:"11px", fontWeight:"800", color:"#3b82f6", textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"4px"}}>Important Announcement</div>
-            <div style={{fontSize:"15px", color:"#1e3a8a", fontWeight:"600", lineHeight:"1.5"}}>{notice}</div>
-          </div>
-          <button 
-             onClick={() => setDismissedNotice(notice)}
-             title="Dismiss notice"
-             style={{
-               position:"absolute", right:16, top:16, background:"transparent", border:"none", 
-               fontSize:18, color:"#94a3b8", cursor:"pointer", padding:4, lineHeight:1, transition: "color 0.2s"
-             }}
-             onMouseEnter={e => e.currentTarget.style.color = "#475569"}
-             onMouseLeave={e => e.currentTarget.style.color = "#94a3b8"}
-          >✕</button>
+      {/* Student Global Dashboard Multiple Notice Banner */}
+      {activeNotices.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {activeNotices.map((n) => (
+            <div key={n.id} className="st-notice-box" style={{
+              background: "linear-gradient(to right, #eff6ff, #f8fafc)",
+              border: "1px solid #bfdbfe", borderLeft: "4px solid #3b82f6",
+              padding: "16px 40px 16px 20px", borderRadius: "12px", display: "flex", alignItems: "center", gap: "16px",
+              boxShadow: "0 4px 12px rgba(59, 130, 246, 0.05)", position: "relative"
+            }}>
+              <span style={{fontSize:"24px", flexShrink:0}}>📢</span>
+              <div style={{ minWidth: 0, width: "100%" }}>
+                <div style={{fontSize:"11px", fontWeight:"800", color:"#3b82f6", textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"4px"}}>Important Announcement</div>
+                <div style={{fontSize:"15px", color:"#1e3a8a", fontWeight:"600", lineHeight:"1.5", wordWrap:"break-word"}}>{n.text}</div>
+              </div>
+              <button 
+                 onClick={() => dismissNotice(n.id)}
+                 title="Dismiss notice"
+                 style={{
+                   position:"absolute", right:16, top:16, background:"transparent", border:"none", 
+                   fontSize:20, color:"#94a3b8", cursor:"pointer", padding:4, lineHeight:1, transition: "color 0.2s"
+                 }}
+                 onMouseEnter={e => e.currentTarget.style.color = "#475569"}
+                 onMouseLeave={e => e.currentTarget.style.color = "#94a3b8"}
+              >✕</button>
+            </div>
+          ))}
         </div>
       )}
 
-      <div style={{ fontSize:28, fontWeight:800, color:"#0f172a", letterSpacing:"-0.5px" }}>My Wallet</div>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))", gap:20 }}>
+      <div className="st-title" style={{ fontSize:28, fontWeight:800, color:"#0f172a", letterSpacing:"-0.5px" }}>My Wallet</div>
+      <div className="st-stats" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))", gap:20 }}>
         <StatCard icon="💰" label="Balance"    value={rupee(bal)}  sub="Available funds" valueColor="#059669" />
         <StatCard icon="⚠️" label="Open Dues"  value={rupee(dues)} sub={`${exps.filter(e=>!e.isPaid).length} unpaid bills`} valueColor="#dc2626" />
         <StatCard icon="✅" label="Total Paid" value={rupee(paid)} sub={`${exps.filter(e=>e.isPaid).length} settled bills`} />
       </div>
-      <Card style={{ padding:32 }}>
+      <Card className="st-pd" style={{ padding:32 }}>
         <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, fontWeight:800, color:"#64748b", marginBottom:16, textTransform: "uppercase", letterSpacing: "0.05em" }}>
           <span>Wallet Coverage</span><span>{pct}% funded</span>
         </div>
@@ -1083,25 +1136,27 @@ function StuBills({ id }) {
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
-      <div style={{ fontSize:28, fontWeight:800, color:"#0f172a", letterSpacing:"-0.5px" }}>My Mess Bills</div>
+      <div className="st-title" style={{ fontSize:28, fontWeight:800, color:"#0f172a", letterSpacing:"-0.5px" }}>My Mess Bills</div>
       
       {exps.length===0 ? (
         <Card style={{ padding:"60px 20px", textAlign:"center", color:"#94a3b8", fontSize:14 }}>No bills assigned yet.</Card>
       ) : (
         <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
           {exps.map((e) => (
-            <ShadedRow key={e.id} style={{ display:"flex", alignItems:"center", gap:16, padding:"20px 24px" }}>
-              <div style={{ width:12, height:12, borderRadius:"50%", background:e.isPaid?"#10b981":"#ef4444", flexShrink:0, boxShadow: e.isPaid?"0 0 0 4px #d1fae5":"0 0 0 4px #fee2e2" }} />
-              <div style={{ flex:1, minWidth:0, marginLeft: 8 }}>
-                <div style={{ fontWeight:800, fontSize:17, color:"#1e293b" }}>{e.description}</div>
-                <div style={{ fontSize:13, color:"#64748b", marginTop: 6, fontWeight:600 }}>{fdate(e.date)}</div>
-                {!e.isPaid && w?.balance < e.amount && <div style={{ fontSize:12, color:"#ef4444", fontWeight:700, marginTop:6 }}>⚠️ Insufficient balance to pay</div>}
+            <ShadedRow key={e.id} className="st-row" style={{ display:"flex", alignItems:"center", gap:16, padding:"20px 24px" }}>
+              <div className="st-row-header" style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", gap:16 }}>
+                <div style={{ width:12, height:12, borderRadius:"50%", background:e.isPaid?"#10b981":"#ef4444", flexShrink:0, boxShadow: e.isPaid?"0 0 0 4px #d1fae5":"0 0 0 4px #fee2e2" }} />
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontWeight:800, fontSize:17, color:"#1e293b", wordWrap: "break-word" }}>{e.description}</div>
+                  <div style={{ fontSize:13, color:"#64748b", marginTop: 6, fontWeight:600 }}>{fdate(e.date)}</div>
+                  {!e.isPaid && w?.balance < e.amount && <div style={{ fontSize:12, color:"#ef4444", fontWeight:700, marginTop:6 }}>⚠️ Insufficient balance to pay</div>}
+                </div>
               </div>
-              <div style={{ display:"flex", alignItems:"center", gap:24, flexShrink:0 }}>
+              <div className="st-row-actions-left" style={{ display:"flex", alignItems:"center", gap:24, flexShrink:0 }}>
                 <span style={{ fontWeight:800, fontSize:18, color:"#0f172a" }}>{rupee(e.amount)}</span>
                 {e.isPaid
                   ? <Badge text="Paid in Full" color="green" />
-                  : <Btn onClick={() => pay(e)} disabled={!w||w.balance<e.amount}>Pay Now</Btn>
+                  : <Btn className="st-btn-full-mobile" onClick={() => pay(e)} disabled={!w||w.balance<e.amount}>Pay Now</Btn>
                 }
               </div>
             </ShadedRow>
@@ -1119,8 +1174,8 @@ function StuHistory({ id }) {
   const totalOut = txns.filter(t=>t.type==="Debit").reduce((s,t)=>s+t.amount,0);
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
-      <div style={{ fontSize:28, fontWeight:800, color:"#0f172a", letterSpacing:"-0.5px" }}>Transaction History</div>
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:20 }}>
+      <div className="st-title" style={{ fontSize:28, fontWeight:800, color:"#0f172a", letterSpacing:"-0.5px" }}>Transaction History</div>
+      <div className="st-stats" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:20 }}>
         <StatCard icon="⬆️" label="Total Credits" value={rupee(totalIn)}  valueColor="#059669" />
         <StatCard icon="⬇️" label="Total Debits"  value={rupee(totalOut)} valueColor="#dc2626" />
       </div>
@@ -1130,20 +1185,22 @@ function StuHistory({ id }) {
       ) : (
         <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
           {txns.map((t) => (
-            <ShadedRow key={t.id} style={{ display:"flex", alignItems:"center", gap:16, padding:"20px 24px" }}>
-              <div style={{
-                width:48, height:48, borderRadius:14, flexShrink:0,
-                background:t.type==="Credit"?"#f0fdf4":"#fef2f2",
-                display:"flex", alignItems:"center", justifyContent:"center", fontSize:22,
-                boxShadow: t.type==="Credit"?"inset 0 -2px 0 #bbf7d0":"inset 0 -2px 0 #fecaca"
-              }}>
-                {t.type==="Credit"?"⬆️":"⬇️"}
+            <ShadedRow key={t.id} className="st-row" style={{ display:"flex", alignItems:"center", gap:16, padding:"20px 24px" }}>
+              <div className="st-row-header" style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", gap:16 }}>
+                <div style={{
+                  width:48, height:48, borderRadius:14, flexShrink:0,
+                  background:t.type==="Credit"?"#f0fdf4":"#fef2f2",
+                  display:"flex", alignItems:"center", justifyContent:"center", fontSize:22,
+                  boxShadow: t.type==="Credit"?"inset 0 -2px 0 #bbf7d0":"inset 0 -2px 0 #fecaca"
+                }}>
+                  {t.type==="Credit"?"⬆️":"⬇️"}
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontWeight:800, fontSize:16, color:"#1e293b", wordWrap: "break-word" }}>{t.description}</div>
+                  <div style={{ fontSize:13, color:"#64748b", marginTop: 6, fontWeight: 600 }}>{fdate(t.date)}</div>
+                </div>
               </div>
-              <div style={{ flex:1, minWidth:0, marginLeft: 8 }}>
-                <div style={{ fontWeight:800, fontSize:16, color:"#1e293b", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{t.description}</div>
-                <div style={{ fontSize:13, color:"#64748b", marginTop: 6, fontWeight: 600 }}>{fdate(t.date)}</div>
-              </div>
-              <div style={{ textAlign:"right", flexShrink:0 }}>
+              <div className="st-row-actions-left" style={{ textAlign:"right", flexShrink:0 }}>
                 <div style={{ fontWeight:800, fontSize:17, color:t.type==="Credit"?"#059669":"#dc2626", marginBottom: 6 }}>
                   {t.type==="Credit"?"+":"−"}{rupee(t.amount)}
                 </div>
@@ -1179,16 +1236,16 @@ function StuProfile({ id }) {
   if (!me) return null;
   return (
     <div style={{ maxWidth:540, margin:"0 auto" }}>
-      <div style={{ fontSize:28, fontWeight:800, color:"#0f172a", marginBottom:24, letterSpacing:"-0.5px", textAlign:"center" }}>My Profile</div>
-      <Card style={{ padding:32 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:20, paddingBottom:24, marginBottom:24, borderBottom:"1px solid #f1f5f9" }}>
+      <div className="st-title" style={{ fontSize:28, fontWeight:800, color:"#0f172a", marginBottom:24, letterSpacing:"-0.5px", textAlign:"center" }}>My Profile</div>
+      <Card className="st-pd" style={{ padding:32 }}>
+        <div className="st-row-header" style={{ display:"flex", alignItems:"center", gap:20, paddingBottom:24, marginBottom:24, borderBottom:"1px solid #f1f5f9" }}>
           <Av name={me.name} size={72} />
-          <div>
-            <div style={{ fontWeight:800, fontSize:22, color:"#0f172a" }}>{me.name}</div>
+          <div style={{minWidth:0}}>
+            <div style={{ fontWeight:800, fontSize:22, color:"#0f172a", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{me.name}</div>
             <div style={{ fontSize:13, fontWeight:700, color:"#64748b", marginTop:6, textTransform: "uppercase", letterSpacing: "0.08em" }}>Student ID: {me.id}</div>
           </div>
         </div>
-        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+        <div style={{ display:"flex", flexDirection:"column", gap:20, width: "100%" }}>
           <Field label="Full Name" value={me.name} readOnly hint="⚠️ Name modification is restricted." />
           <Field label="Room / Address" value={me.address || "Not Provided"} readOnly hint="⚠️ Contact Admin to change your address." />
           
@@ -1263,12 +1320,79 @@ export default function Root() {
         input:focus, select:focus { outline:none; }
         input[type=number]::-webkit-inner-spin-button { opacity:.3; }
 
+        .text-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* Smooth scrollbar for the swiping table wrapper */
+        .st-table-wrap::-webkit-scrollbar { height: 8px; }
+        .st-table-wrap::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .st-table-wrap::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
         /* The Toast Animation Keyframes */
         @keyframes toastSlideFade {
           0% { opacity: 0; transform: translate(-50%, -20px) scale(0.9); }
           12% { opacity: 1; transform: translate(-50%, 0) scale(1); }
           88% { opacity: 1; transform: translate(-50%, 0) scale(1); }
           100% { opacity: 0; transform: translate(-50%, -20px) scale(0.9); }
+        }
+
+        /* 📱 RESPONSIVE CSS INJECTED HERE */
+        @media (max-width: 640px) {
+          .st-shell-pad { padding: 20px 16px !important; }
+          .st-hide-mobile { display: none !important; }
+          .st-title { font-size: 24px !important; letter-spacing: -0.5px !important; }
+          .st-pd { padding: 20px 16px !important; }
+          
+          /* Grids */
+          .st-stats { grid-template-columns: 1fr !important; }
+          
+          /* Shaded Rows Mobile Stack */
+          .st-row { 
+            flex-direction: column !important; 
+            align-items: flex-start !important; 
+            gap: 16px !important; 
+            padding: 20px 16px !important; 
+          }
+          .st-row-header { 
+            width: 100% !important; 
+            display: flex !important; 
+            align-items: flex-start !important; 
+            gap: 14px !important; 
+          }
+          
+          /* Action buttons align */
+          .st-row-actions { 
+            width: 100% !important; 
+            display: flex !important; 
+            justify-content: flex-end !important; 
+            margin-top: 4px !important; 
+            flex-wrap: wrap; 
+            gap: 8px;
+          }
+          .st-row-actions-left { 
+            width: 100% !important; 
+            display: flex !important; 
+            justify-content: space-between !important; 
+            align-items: center !important; 
+            margin-top: 4px !important; 
+          }
+          
+          /* Full width buttons on mobile */
+          .st-btn-full-mobile { width: 100% !important; justify-content: center !important; flex: 1; }
+          
+          /* Form actions stack */
+          .st-form-row { flex-direction: column !important; gap: 12px !important; }
+          .st-wrap { flex-wrap: wrap !important; }
+          
+          /* Notice banner wrap */
+          .st-notice-box { 
+            flex-direction: column; 
+            align-items: flex-start !important; 
+            padding: 20px 16px 20px 16px !important; 
+          }
+          .st-notice-box button { right: 8px !important; top: 8px !important; }
+
+          /* Tabs scroll hidden bar */
+          .st-tabs-scroll::-webkit-scrollbar { display: none; }
         }
       `}</style>
       <App />
