@@ -41,7 +41,6 @@ function AppProvider({ children }) {
   const [txns,     setTxns]     = useState(SEED_TXN);
   const [toast,    setToast]    = useState(null);
   
-  // Notices State (Multiple)
   const [notices, setNotices] = useState([
     { id: "n1", text: "Welcome to MessPro! Please ensure your pending dues are cleared by the 5th of every month.", date: new Date().toISOString() }
   ]);
@@ -117,19 +116,42 @@ function AppProvider({ children }) {
   }
 
   function addExpense(studentId, amount, description) {
-    // Check if studentId is an array (for broadcasting to all)
     const ids = Array.isArray(studentId) ? studentId : [studentId];
-    
     const newExpenses = ids.map((id, index) => ({
-      id: "e" + Date.now() + index, // added index to ensure unique IDs if created in same ms
+      id: "e" + Date.now() + index, 
       studentId: id, 
       amount: Number(amount), 
       description,
       date: new Date().toISOString().slice(0,10), 
       isPaid: false,
     }));
-    
     setExpenses(prev => [...prev, ...newExpenses]);
+  }
+
+  function editExpense(expenseId, patch, applyToAllIdentical) {
+    const target = expenses.find(e => e.id === expenseId);
+    if (!target) return;
+    
+    setExpenses(prev => prev.map(e => {
+      if (e.id === expenseId) return { ...e, ...patch };
+      if (applyToAllIdentical && e.description === target.description && e.amount === target.amount && e.date === target.date && !e.isPaid) {
+         return { ...e, ...patch };
+      }
+      return e;
+    }));
+  }
+
+  function deleteExpense(expenseId, applyToAllIdentical) {
+    const target = expenses.find(e => e.id === expenseId);
+    if (!target) return;
+
+    setExpenses(prev => prev.filter(e => {
+      if (e.id === expenseId) return false;
+      if (applyToAllIdentical && e.description === target.description && e.amount === target.amount && e.date === target.date && !e.isPaid) {
+         return false;
+      }
+      return true;
+    }));
   }
 
   // ── NOTICES ACTIONS ───────────────────────────────────────────────────────
@@ -168,7 +190,6 @@ function AppProvider({ children }) {
       if (exists) return "Phone number is already associated with another account.";
     }
     
-    // Students can safely update phone, email, and password
     const safePatch = {};
     if (patch.phone !== undefined) safePatch.phone = patch.phone;
     if (patch.email !== undefined) safePatch.email = patch.email;
@@ -190,7 +211,7 @@ function AppProvider({ children }) {
     <Ctx.Provider value={{
       user, students, wallets, expenses, txns, notices, dismissedNotices,
       doLogin, logout, showToast, addNotice, removeNotice, dismissNotice,
-      registerStudent, editStudent, deleteStudent, loadWallet, addExpense,
+      registerStudent, editStudent, deleteStudent, loadWallet, addExpense, editExpense, deleteExpense,
       payExpense, updateProfile,
       getStudent, getWallet, getExpenses, getTxns,
       totalDues, walletPool,
@@ -215,7 +236,16 @@ const Card = ({children, style={}, className=""}) => (
   </div>
 );
 
-// Global Toast Popup Component
+// Checkbox Component for Bulk Editing/Deleting
+function Checkbox({ label, checked, onChange }) {
+  return (
+    <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: 14, color: "#1e293b", fontWeight: 600 }}>
+      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} style={{ width: 18, height: 18, cursor: "pointer", accentColor: "#1e3a8a" }} />
+      {label}
+    </label>
+  );
+}
+
 function ToastPopup({ toast }) {
   if (!toast) return null;
   return (
@@ -234,7 +264,6 @@ function ToastPopup({ toast }) {
   );
 }
 
-// Shaded Row Component for Lists
 const ShadedRow = ({children, style={}, className=""}) => {
   const [hov, setHov] = useState(false);
   return (
@@ -835,11 +864,21 @@ function AdminStudents() {
 }
 
 function AdminBilling() {
-  const { students, getWallet, getExpenses, loadWallet, addExpense, showToast } = useApp();
+  const { students, getWallet, getExpenses, loadWallet, addExpense, editExpense, deleteExpense, showToast } = useApp();
   const [wModal, setWModal] = useState(null);
   const [eModal, setEModal] = useState(false);
+  
+  // Edit & Delete Expense Modals
+  const [edExp, setEdExp] = useState(null);
+  const [edBulk, setEdBulk] = useState(false);
+  const [delExp, setDelExp] = useState(null);
+  const [delBulk, setDelBulk] = useState(false);
+
   const [wAmt, setWAmt]   = useState(""); const [wNote, setWNote] = useState("");
   const [eStd, setEStd]   = useState(""); const [eAmt, setEAmt]   = useState(""); const [eDesc, setEDesc] = useState("");
+
+  const expenses = students.flatMap(s => getExpenses(s.id));
+  const unpaidExpenses = expenses.filter(e => !e.isPaid).sort((a,b) => new Date(b.date) - new Date(a.date));
 
   function doLoad() {
     if (!wAmt || Number(wAmt) <= 0) return;
@@ -860,6 +899,25 @@ function AdminBilling() {
     setEModal(false); setEStd(""); setEAmt(""); setEDesc("");
   }
 
+  function doEditExp() {
+    if (!edExp.amount || !edExp.description.trim()) return showToast("Fields cannot be empty.", false);
+    editExpense(edExp.id, { amount: Number(edExp.amount), description: edExp.description }, edBulk);
+    showToast(edBulk ? "Bulk expenses updated successfully." : "Expense updated successfully.", true);
+    setEdExp(null);
+  }
+
+  function doDelExp() {
+    deleteExpense(delExp.id, delBulk);
+    showToast(delBulk ? "Bulk expenses deleted successfully." : "Expense deleted successfully.", true);
+    setDelExp(null);
+  }
+
+  // Helpers to count identical unpaid bills across OTHER students
+  const getIdenticalCount = (exp) => {
+    if (!exp) return 0;
+    return expenses.filter(x => x.description === exp.description && x.amount === exp.amount && x.date === exp.date && x.id !== exp.id && !x.isPaid).length;
+  };
+
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:24 }}>
       {/* Centered Top Heading and Add Expense button */}
@@ -868,6 +926,7 @@ function AdminBilling() {
         <Btn color="success" onClick={() => setEModal(true)}>+ Add New Expense</Btn>
       </div>
       
+      {/* 1. Wallet Balances */}
       {students.length === 0 ? (
         <Card style={{ padding:"60px 20px", textAlign:"center", color:"#94a3b8", fontSize:14 }}>
           No students yet. Register students first to manage billing.
@@ -908,6 +967,60 @@ function AdminBilling() {
         </div>
       )}
 
+      {/* 2. Advanced Manage Unpaid Expenses Section */}
+      {students.length > 0 && (
+        <div style={{ marginTop: 24 }}>
+          <div style={{ paddingBottom:16, textAlign: "center", fontSize:14, fontWeight:800, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.08em" }}>
+            Active (Unpaid) Bills
+          </div>
+          <Card style={{ padding: 0 }}>
+            <div className="st-table-wrap" style={{ width: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch", borderRadius: 20 }}>
+              <table style={{ width:"100%", borderCollapse:"collapse", minWidth:680 }}>
+                <thead>
+                  <tr style={{ background:"#f8fafc", borderBottom:"2px solid #e2e8f0" }}>
+                    <th style={{ padding:"16px 20px", textAlign:"left", fontSize:12, fontWeight:800, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.08em", whiteSpace:"nowrap" }}>Date</th>
+                    <th style={{ padding:"16px 20px", textAlign:"left", fontSize:12, fontWeight:800, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.08em", whiteSpace:"nowrap" }}>Student</th>
+                    <th style={{ padding:"16px 20px", textAlign:"left", fontSize:12, fontWeight:800, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.08em", whiteSpace:"nowrap" }}>Description</th>
+                    <th style={{ padding:"16px 20px", textAlign:"right", fontSize:12, fontWeight:800, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.08em", whiteSpace:"nowrap" }}>Amount</th>
+                    <th style={{ padding:"16px 20px", textAlign:"center", fontSize:12, fontWeight:800, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.08em", whiteSpace:"nowrap" }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {unpaidExpenses.map((e,i) => {
+                    const s = students.find(x => x.id===e.studentId);
+                    return (
+                      <tr key={e.id} style={{ borderBottom: i<unpaidExpenses.length-1?"1px solid #f1f5f9":"none", transition: "background 0.2s" }} onMouseEnter={ev=>ev.currentTarget.style.background="#f8fafc"} onMouseLeave={ev=>ev.currentTarget.style.background="transparent"}>
+                        <td style={{ padding:"16px 20px", fontSize:13, color:"#64748b", whiteSpace:"nowrap", fontWeight:600, textAlign:"left" }}>{fdate(e.date)}</td>
+                        <td style={{ padding:"16px 20px", textAlign:"left" }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                            {s && <Av name={s.name} size={32} />}
+                            <span style={{ fontSize:14, fontWeight:700, color:"#1e293b", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"150px" }}>{s?.name||"Unknown"}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding:"16px 20px", fontSize:13, color:"#64748b", fontWeight:600, textAlign:"left" }}>{e.description}</td>
+                        <td style={{ padding:"16px 20px", fontWeight:800, fontSize:15, color:"#dc2626", whiteSpace:"nowrap", textAlign:"right" }}>
+                          {rupee(e.amount)}
+                        </td>
+                        <td style={{ padding:"16px 20px", textAlign:"center" }}>
+                           <div style={{ display:"flex", gap:8, justifyContent:"center" }}>
+                              <Btn sm color="ghost" onClick={() => { setEdExp({...e}); setEdBulk(false); }}>✏️</Btn>
+                              <Btn sm color="danger" onClick={() => { setDelExp(e); setDelBulk(false); }}>🗑️</Btn>
+                           </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {unpaidExpenses.length===0 && (
+                    <tr><td colSpan={5} style={{ padding:"60px 20px", textAlign:"center", color:"#94a3b8", fontSize:14 }}>No unpaid bills remaining.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Modals */}
       {wModal && (
         <Modal title={`Load Wallet — ${wModal.name}`} onClose={() => setWModal(null)}>
           <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
@@ -924,7 +1037,6 @@ function AdminBilling() {
       {eModal && (
         <Modal title="Add Mess Expense" onClose={() => setEModal(false)}>
           <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-            {/* Added "All Students" Option to Select component */}
             <Select label="Select Student *" value={eStd} onChange={e => setEStd(e.target.value)}>
               <option value="">Choose a student…</option>
               <option value="all">All Students</option>
@@ -939,6 +1051,48 @@ function AdminBilling() {
           </div>
         </Modal>
       )}
+
+      {edExp && (() => {
+         const count = getIdenticalCount(expenses.find(e => e.id === edExp.id));
+         return (
+           <Modal title="Edit Unpaid Expense" onClose={() => setEdExp(null)}>
+             <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+               <Field label="Amount (₹) *" type="number" value={edExp.amount} onChange={e => setEdExp({...edExp, amount: e.target.value})} />
+               <Field label="Expense Description *" value={edExp.description} onChange={e => setEdExp({...edExp, description: e.target.value})} />
+               {count > 0 && (
+                 <div style={{ padding: "14px 16px", background: "#eff6ff", borderRadius: 12, border: "1px solid #bfdbfe", marginTop: 8 }}>
+                    <Checkbox label={`Apply changes to ${count} other identical bills for other students`} checked={edBulk} onChange={setEdBulk} />
+                 </div>
+               )}
+               <div className="st-form-row" style={{ display:"flex", gap:12, marginTop:12 }}>
+                 <div style={{ flex:2 }}><Btn full onClick={doEditExp}>Save Changes</Btn></div>
+                 <div style={{ flex:1 }}><Btn full color="ghost" onClick={() => setEdExp(null)}>Cancel</Btn></div>
+               </div>
+             </div>
+           </Modal>
+         );
+      })()}
+
+      {delExp && (() => {
+         const count = getIdenticalCount(delExp);
+         return (
+           <Modal title="Confirm Deletion" onClose={() => setDelExp(null)}>
+             <div style={{ fontSize:15, color:"#475569", marginBottom:16, lineHeight:1.6, fontWeight: 500 }}>
+               Are you sure you want to delete the bill <strong>"{delExp.description}"</strong> ({rupee(delExp.amount)}) for this student?
+             </div>
+             {count > 0 && (
+               <div style={{ padding: "14px 16px", background: "#fef2f2", borderRadius: 12, border: "1px solid #fecaca", marginBottom: 20 }}>
+                  <Checkbox label={`Also delete ${count} other identical bills for other students`} checked={delBulk} onChange={setDelBulk} />
+               </div>
+             )}
+             <div className="st-form-row" style={{ display:"flex", gap:12 }}>
+               <Btn full color="danger" onClick={doDelExp}>Yes, Delete</Btn>
+               <Btn full color="ghost" onClick={() => setDelExp(null)}>Cancel</Btn>
+             </div>
+           </Modal>
+         );
+      })()}
+
     </div>
   );
 }
