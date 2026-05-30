@@ -117,10 +117,19 @@ function AppProvider({ children }) {
   }
 
   function addExpense(studentId, amount, description) {
-    setExpenses(prev => [...prev, {
-      id: "e" + Date.now(), studentId, amount: Number(amount), description,
-      date: new Date().toISOString().slice(0,10), isPaid: false,
-    }]);
+    // Check if studentId is an array (for broadcasting to all)
+    const ids = Array.isArray(studentId) ? studentId : [studentId];
+    
+    const newExpenses = ids.map((id, index) => ({
+      id: "e" + Date.now() + index, // added index to ensure unique IDs if created in same ms
+      studentId: id, 
+      amount: Number(amount), 
+      description,
+      date: new Date().toISOString().slice(0,10), 
+      isPaid: false,
+    }));
+    
+    setExpenses(prev => [...prev, ...newExpenses]);
   }
 
   // ── NOTICES ACTIONS ───────────────────────────────────────────────────────
@@ -838,17 +847,24 @@ function AdminBilling() {
     showToast(`Successfully loaded ${rupee(wAmt)} into ${wModal.name}'s wallet.`, true);
     setWModal(null); setWAmt(""); setWNote("");
   }
+  
   function doExpense() {
     if (!eStd || !eAmt || !eDesc.trim()) return;
-    addExpense(eStd, eAmt, eDesc.trim());
-    showToast("Expense added successfully.", true);
+    if (eStd === "all") {
+      const allIds = students.map(s => s.id);
+      addExpense(allIds, eAmt, eDesc.trim());
+    } else {
+      addExpense(eStd, eAmt, eDesc.trim());
+    }
+    showToast(eStd === "all" ? "Expense added for all students." : "Expense added successfully.", true);
     setEModal(false); setEStd(""); setEAmt(""); setEDesc("");
   }
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:24 }}>
-      <div className="st-wrap" style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12 }}>
-        <div className="st-title" style={{ fontSize:28, fontWeight:800, color:"#0f172a", letterSpacing:"-0.5px" }}>Wallet & Billing</div>
+      {/* Centered Top Heading and Add Expense button */}
+      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16, paddingBottom: 12 }}>
+        <div className="st-title" style={{ fontSize:28, fontWeight:800, color:"#0f172a", letterSpacing:"-0.5px", textAlign:"center" }}>Wallet & Billing</div>
         <Btn color="success" onClick={() => setEModal(true)}>+ Add New Expense</Btn>
       </div>
       
@@ -908,8 +924,10 @@ function AdminBilling() {
       {eModal && (
         <Modal title="Add Mess Expense" onClose={() => setEModal(false)}>
           <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+            {/* Added "All Students" Option to Select component */}
             <Select label="Select Student *" value={eStd} onChange={e => setEStd(e.target.value)}>
               <option value="">Choose a student…</option>
+              <option value="all">All Students</option>
               {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
             <Field label="Amount (₹) *" type="number" value={eAmt} onChange={e => setEAmt(e.target.value)} placeholder="e.g. 320" />
