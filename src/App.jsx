@@ -54,16 +54,21 @@ function AppProvider({ children }) {
 
   // ── DATABASE SYNC ─────────────────────────────────────────────────────────
   async function fetchDatabase() {
+    setLoading(true); // Ensure loading state is toggled
     try {
-      const res = await fetch(`${API}/data`);
+      const res = await fetch(`${API}/init`);
       const db = await res.json();
+      
+      // Force update all states
       setStudents(db.students || []);
       setWallets(db.wallets || []);
       setExpenses(db.expenses || []);
       setTxns(db.txns || []);
       setNotices(db.notices || []);
+      
+      console.log("Database synced. Students count:", db.students?.length);
     } catch (error) {
-      console.error("Failed to connect to MongoDB Backend:", error);
+      console.error("Failed to connect:", error);
     } finally {
       setLoading(false);
     }
@@ -98,11 +103,25 @@ function AppProvider({ children }) {
   // ── MUTATIONS (TALK TO BACKEND) ─────────────────────────────────────────
   async function registerStudent(data) {
     try {
-      const res = await fetch(`${API}/students`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-      if (!res.ok) { const err = await res.json(); return err.error || "Registration failed"; }
-      await fetchDatabase();
-      return null;
-    } catch(e) { return "Server communication error"; }
+      const res = await fetch(`${API}/students`, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify(data) 
+      });
+      
+      if (!res.ok) { 
+        const err = await res.json(); 
+        return err.error || "Registration failed"; 
+      }
+      
+      // Crucial: Update the internal state immediately 
+      // without waiting for a full database reload if possible, 
+      // or ensure fetchDatabase completes before returning.
+      await fetchDatabase(); 
+      return null; 
+    } catch(e) { 
+      return "Server communication error"; 
+    }
   }
 
   async function editStudent(id, patch) {
