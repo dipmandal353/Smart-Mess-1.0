@@ -1,6 +1,6 @@
 import { useState, createContext, useContext, useEffect } from "react";
 
-const API = "http://localhost:5000/api";
+const API = "https://smart-mess-1-0-backend.onrender.com";
 
 // ── SEED ──────────────────────────────────────────────────────────────────────
 const SEED_STUDENTS = [
